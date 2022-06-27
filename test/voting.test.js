@@ -67,18 +67,16 @@ contract("Voting", accounts => {
         });
     });
 
-    describe('Add voters & proposals', async function() {
-        beforeEach(async function () {
-            this.VotingInstance = await Voting.new({from: owner});
-        });
-    
-        // ::::::::::::: addVoter ::::::::::::: //
-    
-        context('addVoter Function', async function() {
-            it('add and get voter successfully', async function () {
+    describe('Set & Get Voters', async function() {
+        context('Set Voters', async function() {
+            beforeEach(async function () {
+                this.VotingInstance = await Voting.new({from: owner});
+            });
+
+            it('add a voter successfully', async function () {
                 await this.VotingInstance.addVoter(voter1, {from: owner});
-                let voterObj = await this.VotingInstance.getVoter(voter1, {from: voter1});
-                expect(voterObj.isRegistered).to.be.equal(true);
+                let voterObj = await this.VotingInstance.getVoter.call(voter1, {from: voter1});
+                expect(voterObj.isRegistered).to.be.true;
             });
 
             it('adding voter triggers event', async function() {
@@ -99,53 +97,100 @@ contract("Voting", accounts => {
                 await this.VotingInstance.addVoter(voter1, {from: owner});
                 await expectRevert(this.VotingInstance.addVoter(voter1, {from: owner}), 'Already registered');
             });
-
-            it('GET NOT VOTER', async function() {
-                await this.VotingInstance.addVoter(voter1, {from: owner});
-                let voterObj = await this.VotingInstance.getVoter(voter2, {from: voter1});
-                expect(voterObj.isRegistered).to.be.equal(false);
-            });
         });
-    
-        // ::::::::::::: addProposal ::::::::::::: //
-    
-        context('addProposal Function', async function() {
-            it('add and retrieve proposal', async function() {
+
+        context('Get Voters', async function() {
+            before(async function() {
+                this.VotingInstance = await Voting.new({from: owner});
                 await this.VotingInstance.addVoter(voter1, {from: owner});
                 await this.VotingInstance.startProposalsRegistering({from: owner});
-        
-                let desc = 'test';
                 let proposalId = 0;
-        
+                let desc = 'test';
                 await this.VotingInstance.addProposal(desc, {from: voter1});
-                await expectRevert(this.VotingInstance.getOneProposal(proposalId, {from: voter2}), "You're not a voter");
-                let proposal = await this.VotingInstance.getOneProposal(proposalId, {from: voter1});
-        
+                await this.VotingInstance.endProposalsRegistering({from: owner});
+                await this.VotingInstance.startVotingSession({from: owner});
+                await this.VotingInstance.setVote(proposalId, {from: voter1});
+            });
+
+            it('retrieved voter is registered', async function() {
+                let tempVoter = await this.VotingInstance.getVoter.call(voter1, {from: voter1});
+                expect(tempVoter.isRegistered).to.be.true;
+            });
+
+            it('retrieved voter has voted', async function() {
+                let tempVoter = await this.VotingInstance.getVoter.call(voter1, {from: voter1});
+                expect(tempVoter.hasVoted).to.be.true;
+            });
+
+            it('retrieved non existing voter is not registered', async function() {
+                let tempVoter = await this.VotingInstance.getVoter.call(voter2, {from: voter1});
+                expect(tempVoter.isRegistered).to.be.false;
+            });
+
+            it('retrieved non existing voter has not voted', async function() {
+                let tempVoter = await this.VotingInstance.getVoter.call(voter2, {from: voter1});
+                expect(tempVoter.hasVoted).to.be.false;
+            });
+
+            it('retrieved voter voted for the first proposal proposal', async function() {
+                let tempVoter = await this.VotingInstance.getVoter.call(voter1, {from: voter1});
+                votedId = await tempVoter.votedProposalId;
+                expect(votedId).to.be.bignumber.equal(new BN(0));
+            });
+        });
+    });
+
+    describe('Set & Get Proposals', async function() {
+        beforeEach(async function() {
+            this.VotingInstance = await Voting.new({from: owner});
+            await this.VotingInstance.addVoter(voter1, {from: owner});
+        })
+
+        // ::::::::::::: addProposal ::::::::::::: //
+        context('Set Proposals', async function() {        
+            it('add a proposal succesfully', async function() {
+                await this.VotingInstance.startProposalsRegistering({from: owner});
+                let proposalId = 0;
+                let desc = 'test';
+                await this.VotingInstance.addProposal(desc, {from: voter1});
+                let proposal = await this.VotingInstance.getOneProposal(proposalId, {from: voter1}); 
                 expect(proposal.description).to.be.equal(desc);
             });
         
             it('only a voter can add a proposal ', async function () {
                 await this.VotingInstance.startProposalsRegistering({from: owner});
                 let desc = 'test';
-                await expectRevert(this.VotingInstance.addProposal(desc, {from: voter1}), "You're not a voter");
+                await expectRevert(this.VotingInstance.addProposal(desc, {from: voter2}), "You're not a voter");
             });
-        
+                
             it('cannot add proposals yet', async function() {
-                await this.VotingInstance.addVoter(voter1, {from: owner});
                 let desc = 'test';
                 await expectRevert(this.VotingInstance.addProposal(desc, {from: voter1}), "Proposals are not allowed yet");
             });
         
             it('cannot add an empty proposal', async function() {
-                await this.VotingInstance.addVoter(voter1, {from: owner});
-                let desc = '';
-                await expectRevert(this.VotingInstance.addProposal(desc, {from: voter1}), "Proposals are not allowed yet");
+                await this.VotingInstance.startProposalsRegistering({from: owner});
+                await expectRevert(this.VotingInstance.addProposal('', {from: voter1}), "Vous ne pouvez pas ne rien proposer");
             });
         });
-    });
 
-    context('proposals do not exist', async function() {
+        context('Get Proposals', async function() {
+            it('proposal does not exist', async function() {
+                await this.VotingInstance.startProposalsRegistering({from: owner});
+                let wrongProposalId = 3;
+                let desc = 'test';
+                await this.VotingInstance.addProposal(desc, {from: voter1});
+                await expectRevert.unspecified(this.VotingInstance.getOneProposal(wrongProposalId, {from: voter2}));  
+            });
 
+            it('only voter can retrieve proposal', async function() {
+                await this.VotingInstance.startProposalsRegistering({from: owner});
+                let proposalId= 0;
+                let desc = 'test';
+                await this.VotingInstance.addProposal(desc, {from: voter1});
+                await expectRevert(this.VotingInstance.getOneProposal(proposalId, {from: voter2}), "You're not a voter");
+            });
+        });
     });
 
     //setVote
@@ -179,15 +224,9 @@ contract("Voting", accounts => {
             await this.VotingInstance.endProposalsRegistering({from: owner});
             await this.VotingInstance.startVotingSession({from: owner});
         });
-
     });
 
-    //stateChanges
+    describe('Get Winner', async function() {
 
-
-    /// OnlyOwners ///
-
-
-    /// OnlyVoters ///
-
+    });
 });
