@@ -7,9 +7,10 @@ contract("Voting", accounts => {
     const owner = accounts[0];
     const voter1 = accounts[1];
     const voter2 = accounts[2];
+    const voter3 = accounts[3];
 
     describe("State Changes", function () {
-        context('Correct tests', async function() {
+        context('Correct state changes', async function() {
             before(async function () {
                 this.VotingInstance = await Voting.new({from: owner});
             });
@@ -40,7 +41,7 @@ contract("Voting", accounts => {
             });
         });
 
-        context('Uncorrrect tests', async function() {
+        context('Uncorrrect state changes', async function() {
             before(async function () {
                 this.VotingInstance = await Voting.new({from: owner});
             });
@@ -194,39 +195,79 @@ contract("Voting", accounts => {
     });
 
     //setVote
-    describe('Set & Get votes', function() {
-        beforeEach(async function () {
-            this.VotingInstance = await Voting.new({from: owner});
+    describe('Set & Get Votes', function() {
+        context('Set Votes', async function() {
+            before(async function () {
+                this.VotingInstance = await Voting.new({from: owner});
+                await this.VotingInstance.addVoter(voter1, {from: owner});
+                await this.VotingInstance.startProposalsRegistering({from: owner});
+                await this.VotingInstance.addProposal('proposal 1', {from: voter1});
+                await this.VotingInstance.addProposal('proposal 2', {from: voter1});
+                await this.VotingInstance.endProposalsRegistering({from: owner});
+                await this.VotingInstance.startVotingSession({from: owner});
+            });
+
+            it('only a voter can vote', async function() {
+                await expectRevert(this.VotingInstance.setVote(0, {from: voter2}), "You're not a voter");
+            });
+
+            it('vote for non existing proposal', async function() {
+                await expectRevert.unspecified(this.VotingInstance.setVote(2, {from: voter1}));
+            });
+
+            it('setup vote correctly', async function() {
+                let id = 0;
+                await this.VotingInstance.setVote(id, {from: voter1});
+                let voterObj = await this.VotingInstance.getVoter(voter1, {from: voter1});
+                expect(voterObj.votedProposalId).to.be.bignumber.equal(new BN(id));
+            });
+
+            it('cannot vote twice', async function() {
+                let id = 1;
+                await expectRevert(this.VotingInstance.setVote(id, {from: voter1}), "You have already voted");
+            });
         });
 
-        it('setup vote and retrieve correctly', async function() {
-            await this.VotingInstance.addVoter(voter1, {from: owner});
-            await this.VotingInstance.startProposalsRegistering({from: owner});
-    
-            let desc = 'test';
-            let proposalId = 0;
-    
-            await this.VotingInstance.addProposal(desc, {from: voter1});
-            await this.VotingInstance.endProposalsRegistering({from: owner});
-            await this.VotingInstance.startVotingSession({from: owner});
-    
-            await this.VotingInstance.setVote(proposalId, {from: voter1});
-        });
+        context('Get Votes', async function() {
+            before(async function () {
+                this.VotingInstance = await Voting.new({from: owner});
+                await this.VotingInstance.addVoter(voter1, {from: owner});
+                await this.VotingInstance.startProposalsRegistering({from: owner});
+                await this.VotingInstance.addProposal('proposal 1', {from: voter1});
+                await this.VotingInstance.addProposal('proposal 2', {from: voter1});
+                await this.VotingInstance.endProposalsRegistering({from: owner});
+                await this.VotingInstance.startVotingSession({from: owner});
+                await this.VotingInstance.setVote(0, {from: voter1});
+            });
 
-        it('', async function() {
-            await this.VotingInstance.addVoter(voter1, {from: owner});
-            await this.VotingInstance.startProposalsRegistering({from: owner});
-    
-            let desc = 'test';
-            let proposalId = 0;
-    
-            await this.VotingInstance.addProposal(desc, {from: voter1});
-            await this.VotingInstance.endProposalsRegistering({from: owner});
-            await this.VotingInstance.startVotingSession({from: owner});
+            it('get vote description', async function() {
+                let proposalObj = await this.VotingInstance.getOneProposal(0, {from: voter1});
+                expect(proposalObj.description).to.be.equal('proposal 1');
+            })
+
+            it('get vote count', async function() {
+                let proposalObj = await this.VotingInstance.getOneProposal(0, {from: voter1});
+                expect(proposalObj.voteCount).to.be.bignumber.equal(new BN(1));
+            })
         });
     });
 
-    describe('Get Winner', async function() {
-
+    it('complete scenario with winner', async function() {
+        this.VotingInstance = await Voting.new({from: owner});
+        await this.VotingInstance.addVoter(voter1, {from: owner});
+        await this.VotingInstance.addVoter(voter2, {from: owner});
+        await this.VotingInstance.addVoter(voter3, {from: owner});
+        await this.VotingInstance.startProposalsRegistering({from: owner});
+        await this.VotingInstance.addProposal('proposal 1', {from: voter1});
+        await this.VotingInstance.addProposal('proposal 2', {from: voter2});
+        await this.VotingInstance.endProposalsRegistering({from: owner});
+        await this.VotingInstance.startVotingSession({from: owner});
+        await this.VotingInstance.setVote(0, {from: voter1});
+        await this.VotingInstance.setVote(1, {from: voter2});
+        await this.VotingInstance.setVote(1, {from: voter3});
+        await this.VotingInstance.endVotingSession({from: owner});
+        await this.VotingInstance.tallyVotes({from: owner});
+        let id = await this.VotingInstance.winningProposalID();
+        expect(id).to.be.bignumber.equal(new BN(1));
     });
 });
