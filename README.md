@@ -1,11 +1,11 @@
 # Voting System
 ## Project 2 Test
 
-[![Build Status](https://travis-ci.org/joemccann/dillinger.svg?branch=master)](https://travis-ci.org/joemccann/dillinger)
-
+https://github.com/jjeangal/truflle_wsl_test
 This project offers a solution to the testing Challenge n°2 proposed by Alyra.
 
 ## Functions
+
 
 The voting contract to test is made of the following functions:
 
