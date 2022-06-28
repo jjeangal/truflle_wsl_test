@@ -49,12 +49,14 @@ The tests were organized in the following categories:
         * Retrieved non existing voter is not registered
         * Retrieved non existing voter has not voted
         * Retrieved voter voted for the first proposal proposal
+        * Only voter can retrieve voter
 - Set & Get Proposals
     - Set Proposals
         * Add a proposal succesfully
         * Only a voter can add a proposal
         * Cannot add proposals yet
         * Cannot add an empty proposal
+        * Adding proposal throws event
     - Get Proposals
         * Proposal does not exist
         * Only voter can retrieve proposal
@@ -63,7 +65,9 @@ The tests were organized in the following categories:
         * Only a voter can vote
         * Vote for non existing proposal
         * Setup vote correctly
+        * Setup vote triggers event
         * Cannot vote twice
+        * Not the right status to vote
     - Get Votes
         * Get vote description
         * Get vote count
@@ -74,7 +78,7 @@ With the installed dependencies and libraries, theses tests are verified in term
 
 File         |  % Stmts | % Branch |  % Funcs |  % Lines |
 -------------|----------|----------|----------|----------|
-  Voting.sol |      100 |    92.86 |      100 |      100 |
+  Voting.sol |      100 |   96.43  |      100 |      100 |
 
 ## Plugins, Frameworks, Packages
 

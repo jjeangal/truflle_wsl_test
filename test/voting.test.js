@@ -82,14 +82,14 @@ contract("Voting", accounts => {
 
             it('adding voter triggers event', async function() {
                 let addVoterEvent = await this.VotingInstance.addVoter(voter1, {from: owner});
-                expectEvent(addVoterEvent, 'VoterRegistered', {voterAddress: voter1});
+                await expectEvent(addVoterEvent, 'VoterRegistered', {voterAddress: voter1});
             });
         
             it('only owner can add a voter', async function() {
                 await expectRevert(this.VotingInstance.addVoter(voter2, {from: voter1}), 'caller is not the owner');
             });
         
-            it('cannot add a voter if session does not allow it anymore', async function() {
+            it('cannot add a voter if session if status is incorrect', async function() {
                 await this.VotingInstance.startProposalsRegistering({from: owner});
                 await expectRevert(this.VotingInstance.addVoter(voter1, {from: owner}), 'Voters registration is not open yet');
             });
@@ -138,6 +138,10 @@ contract("Voting", accounts => {
                 votedId = await tempVoter.votedProposalId;
                 expect(votedId).to.be.bignumber.equal(new BN(0));
             });
+
+            it('only voter can retrieve voter', async function() {
+                await expectRevert(this.VotingInstance.getVoter.call(voter1, {from: voter3}), "You're not a voter");
+            });
         });
     });
 
@@ -164,7 +168,7 @@ contract("Voting", accounts => {
                 await expectRevert(this.VotingInstance.addProposal(desc, {from: voter2}), "You're not a voter");
             });
                 
-            it('cannot add proposals yet', async function() {
+            it('cannot add proposals at current status', async function() {
                 let desc = 'test';
                 await expectRevert(this.VotingInstance.addProposal(desc, {from: voter1}), "Proposals are not allowed yet");
             });
@@ -172,6 +176,13 @@ contract("Voting", accounts => {
             it('cannot add an empty proposal', async function() {
                 await this.VotingInstance.startProposalsRegistering({from: owner});
                 await expectRevert(this.VotingInstance.addProposal('', {from: voter1}), "Vous ne pouvez pas ne rien proposer");
+            });
+
+            it('adding proposal throws event', async function() {
+                let id = new BN(0);
+                await this.VotingInstance.startProposalsRegistering({from: owner});
+                let proposalAdded = await this.VotingInstance.addProposal('Test', {from: voter1});
+                await expectEvent(proposalAdded, "ProposalRegistered", {proposalId: id});
             });
         });
 
@@ -200,6 +211,7 @@ contract("Voting", accounts => {
             before(async function () {
                 this.VotingInstance = await Voting.new({from: owner});
                 await this.VotingInstance.addVoter(voter1, {from: owner});
+                await this.VotingInstance.addVoter(voter2, {from: owner});
                 await this.VotingInstance.startProposalsRegistering({from: owner});
                 await this.VotingInstance.addProposal('proposal 1', {from: voter1});
                 await this.VotingInstance.addProposal('proposal 2', {from: voter1});
@@ -208,7 +220,7 @@ contract("Voting", accounts => {
             });
 
             it('only a voter can vote', async function() {
-                await expectRevert(this.VotingInstance.setVote(0, {from: voter2}), "You're not a voter");
+                await expectRevert(this.VotingInstance.setVote(0, {from: voter3}), "You're not a voter");
             });
 
             it('vote for non existing proposal', async function() {
@@ -222,9 +234,21 @@ contract("Voting", accounts => {
                 expect(voterObj.votedProposalId).to.be.bignumber.equal(new BN(id));
             });
 
+            it('setVote triggers event', async function() {
+                let id = 0;
+                let idBn = new BN(0);
+                let eventVote = await this.VotingInstance.setVote(id, {from: voter2}); 
+                await expectEvent(eventVote, "Voted", {voter: voter2, proposalId: idBn});
+            })
+
             it('cannot vote twice', async function() {
                 let id = 1;
                 await expectRevert(this.VotingInstance.setVote(id, {from: voter1}), "You have already voted");
+            });
+
+            it('not the right status to vote', async function() {
+                await this.VotingInstance.endVotingSession({from: owner});
+                await expectRevert(this.VotingInstance.setVote(0, {from: voter1}), 'Voting session havent started yet');
             });
         });
 
