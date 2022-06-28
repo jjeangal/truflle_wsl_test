@@ -230,7 +230,7 @@ contract("Voting", accounts => {
 
         context('Get Votes', async function() {
             before(async function () {
-                this.VotingInstance = await Voting.new({from: owner});
+                this.VotingInstance = await Voting.deployed();
                 await this.VotingInstance.addVoter(voter1, {from: owner});
                 await this.VotingInstance.startProposalsRegistering({from: owner});
                 await this.VotingInstance.addProposal('proposal 1', {from: voter1});
