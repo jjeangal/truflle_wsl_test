@@ -91,8 +91,8 @@ contract Voting is Ownable {
     /// @param _desc The description of the proposal to be added
     function addProposal(string memory _desc) external onlyVoters {
         require(workflowStatus == WorkflowStatus.ProposalsRegistrationStarted, 'Proposals are not allowed yet');
-        require(keccak256(abi.encode(_desc)) != keccak256(abi.encode("")), 'Vous ne pouvez pas ne rien proposer'); // facultatif
-        // voir que desc est different des autres
+        require(keccak256(abi.encode(_desc)) != keccak256(abi.encode("")), 'Vous ne pouvez pas ne rien proposer');
+        require(proposalsArray.length < 8983, "Adding another proposal will make further loop reach block gas limit");
 
         Proposal memory proposal;
         proposal.description = _desc;
